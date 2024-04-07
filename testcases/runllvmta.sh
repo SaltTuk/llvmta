@@ -21,7 +21,7 @@ cleanup() {
 	# variables. Hence, this workaround which is _slightly_ safer
 	rm -r "${TEST_BUILD_DIR:?}" 2>/dev/null || true
 	mkdir -p "${TEST_BUILD_DIR}"
-	mv -t "$TEST_BUILD_DIR" "$WORKDIR"/*
+	mv -t "$TEST_BUILD_DIR" "$WORKDIR"/* 2>/dev/null || true
 	rmdir "$WORKDIR"
 }
 
@@ -205,7 +205,7 @@ fi
 
 trap cleanup EXIT
 pushd "$WORKDIR"
-clang "${clangopts[@]}" -emit-llvm "$TESTCASE_DIR"/*.c
+clang ${clangopts[@]} -emit-llvm "$TESTCASE_DIR"/*.c*
 llvm-link $(LC_COLLATE=C ls ./*.ll) "${llvm_link_libraries[@]}" -o $UNOPTIMIZEDLL
 # Provide definitions of used library functions, e.g. integer division
 

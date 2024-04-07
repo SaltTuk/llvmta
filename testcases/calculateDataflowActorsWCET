@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+
+# This script is 
+
+# Define source and destination folders as it's done in runTestcase
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BENCHMARK_DIR="$SCRIPT_DIR/Benchmarks"
+
+if [ $# -lt 1 ]; then
+	echo "Usage: $0 source-directory [options]" >&2
+	exit 1
+fi
+readonly TESTCASE="$1"
+shift
+
+SOURCE_DIR=$(find "$BENCHMARK_DIR" \
+					-type d \
+					-wholename "*/$TESTCASE" \
+					! -wholename "*/build/*")
+
+if [ ! -d "$SOURCE_DIR" ]; then
+	echo "Unable to (uniquely) find testcase \"$TESTCASE\"" >&2
+	echo -e "Potential testcases found: \n${SOURCE_DIR}" >&2
+	exit 2
+fi
+
+IFS='/' read -r -a array <<< "$SOURCE_DIR"
+projectname="${array[-1]}"
+DEST_DIR="$SCRIPT_DIR/Benchmarks/saltuk/conversion/converted/scripted/$projectname"
+unset IFS
+
+# Find the actor files
+IFS=$'\n'
+actorpaths=($(find "$SOURCE_DIR" \
+					-wholename "*.hpp" \
+					! -wholename "*Actor.hpp" \
+                    ! -wholename "*Channel.hpp"))
+unset IFS
+
+rm -r $DEST_DIR 2>/dev/null || true
+mkdir $DEST_DIR
+rm dataflowActorsUtils/llvmtaOutputs.txt 2>/dev/null || true
+touch dataflowActorsUtils/llvmtaOutputs.txt
+
+# run WCET for each actor
+for actor in "${actorpaths[@]}"
+do
+    success=false
+    actorname=$(echo "$actor" | rev | cut -d'/' -f1 | cut -c5- | rev)
+    echo -n "Calculating the timing bound for $actorname: "
+    echo -e "\n\n\n\n\n$actorname\n****************************\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+
+    # copy necessary files to the working directory
+    mkdir $DEST_DIR/$actorname
+    cp $SOURCE_DIR/Actor.hpp $DEST_DIR/$actorname/Actor.hpp
+    cp $SOURCE_DIR/Channel.hpp $DEST_DIR/$actorname/Channel.hpp
+    cp $SCRIPT_DIR/dataflowActorsUtils/ClangSpecialOptions.txt $DEST_DIR/$actorname/ClangSpecialOptions.txt
+    cp $actor $DEST_DIR/$actorname/$actorname.hpp
+
+    # run the python script that modifies actor files for the main entry point
+    touch $DEST_DIR/$actorname/$actorname.cpp
+    ./dataflowActorsUtils/ModifyActor.py "$DEST_DIR/$actorname/$actorname.hpp" "$DEST_DIR/$actorname/$actorname.cpp"
+    rm $DEST_DIR/$actorname/$actorname.hpp 
+
+    # do the first llvmta run to output unknown loops, try twice
+    for i in 1 2
+    do
+        echo -e "\$ ./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname --ta-output-unknown-loops=true\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+        cmdoutput="$(./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname --ta-output-unknown-loops=true 2>&1)"
+        firstline=$(echo "$cmdoutput" | sed '1p;d')
+        echo -e "$cmdoutput\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+        if [[ -e "$DEST_DIR/$actorname/build/main/LoopAnnotations.csv" ]]; then
+            # move the loop annotations file to its place, change the name, and give a random number to the loop iterations 
+            cp $DEST_DIR/$actorname/build/main/LoopAnnotations.csv $DEST_DIR/$actorname/${firstline:12}
+            csvfile=`cat $DEST_DIR/$actorname/${firstline:12}`
+            echo "${csvfile//"-1"/"5"}" > $DEST_DIR/$actorname/${firstline:12} # 5 iterations
+            success=true
+            break
+        fi
+    done
+
+    # if loop annotations run was successful run again for the actual WCET calculation, try twice
+    if [[ "$success" = true ]]; then
+        success=false
+        for i in 1 2
+        do
+            echo -e "\$ ./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+            cmdoutput="$(./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname 2>&1)"
+            echo -e "$cmdoutput\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+            if [[ $cmdoutput =~ Calculated[[:space:]]Timing[[:space:]]Bound:[[:space:]][0-9]* ]]; then
+                success=true
+                break
+            fi
+        done
+    fi
+
+    # print timing bound if successful
+    if [[ "$success" = true ]]; then
+        [[ $BASH_REMATCH =~ [0-9]+ ]]
+        echo "$BASH_REMATCH"
+    else
+        echo "-"
+    fi
+done

@@ -161,4 +161,10 @@ llvmta_defaults() {
 	add_option "--ta-muarch-type=inorder"
 	add_option "--ta-memory-type=separatecaches"
 	add_option "--ta-strict=false"
+	add_option "--ta-dumpb-vcg-graph=false"
+	add_option "--ta-ana-type=timing"
+	add_option "--llvmta-isa=arm"
+    add_option "--ta-output-unknown-loops=false"
+	add_option "--ta-output-unknown-extfuncs=false"
+    add_option "--enable-optimizations=false"
 }

@@ -63,7 +63,7 @@ fi
 # the analysis is run. It is used to determine some of the options which will
 # eventually be passed to llvmta
 CTXFLAGS=$(get_ctx_flags "${USEROPTS[@]}")
-
+echo "Looking for LoopAnnotations_${CTXFLAGS}.csv"
 loopanno="${TESTCASE_DIR}/LoopAnnotations_${CTXFLAGS}.csv"
 ctxsensloopanno="${TESTCASE_DIR}/CtxSensLoopAnnotations_${CTXFLAGS}.csv"
 extfuncanno="${TESTCASE_DIR}/ExtFuncAnnotations.csv"
