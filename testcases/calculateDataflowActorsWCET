@@ -39,8 +39,8 @@ unset IFS
 
 rm -r $DEST_DIR 2>/dev/null || true
 mkdir $DEST_DIR
-rm dataflowActorsUtils/llvmtaOutputs.txt 2>/dev/null || true
-touch dataflowActorsUtils/llvmtaOutputs.txt
+touch $DEST_DIR/llvmtaOutputs.log
+touch $DEST_DIR/WCET.txt
 
 # run WCET for each actor
 for actor in "${actorpaths[@]}"
@@ -48,7 +48,8 @@ do
     success=false
     actorname=$(echo "$actor" | rev | cut -d'/' -f1 | cut -c5- | rev)
     echo -n "Calculating the timing bound for $actorname: "
-    echo -e "\n\n\n\n\n$actorname\n****************************\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+    echo -n "$actorname: " >> $DEST_DIR/WCET.txt
+    echo -e "\n\n\n\n\n$actorname\n****************************\n" >> $DEST_DIR/llvmtaOutputs.log
 
     # copy necessary files to the working directory
     mkdir $DEST_DIR/$actorname
@@ -65,15 +66,15 @@ do
     # do the first llvmta run to output unknown loops, try twice
     for i in 1 2
     do
-        echo -e "\$ ./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname --ta-output-unknown-loops=true\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+        echo -e "\$ ./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname --ta-output-unknown-loops=true\n" >> $DEST_DIR/llvmtaOutputs.log
         cmdoutput="$(./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname --ta-output-unknown-loops=true 2>&1)"
         firstline=$(echo "$cmdoutput" | sed '1p;d')
-        echo -e "$cmdoutput\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+        echo -e "$cmdoutput\n" >> $DEST_DIR/llvmtaOutputs.log
         if [[ -e "$DEST_DIR/$actorname/build/main/LoopAnnotations.csv" ]]; then
             # move the loop annotations file to its place, change the name, and give a random number to the loop iterations 
             cp $DEST_DIR/$actorname/build/main/LoopAnnotations.csv $DEST_DIR/$actorname/${firstline:12}
             csvfile=`cat $DEST_DIR/$actorname/${firstline:12}`
-            echo "${csvfile//"-1"/"5"}" > $DEST_DIR/$actorname/${firstline:12} # 5 iterations
+            echo "${csvfile//"-1"/"1"}" > $DEST_DIR/$actorname/${firstline:12} # 1 iterations
             success=true
             break
         fi
@@ -84,9 +85,9 @@ do
         success=false
         for i in 1 2
         do
-            echo -e "\$ ./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+            echo -e "\$ ./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname\n" >> $DEST_DIR/llvmtaOutputs.log
             cmdoutput="$(./runTestcase saltuk/conversion/converted/scripted/$projectname/$actorname 2>&1)"
-            echo -e "$cmdoutput\n" >> dataflowActorsUtils/llvmtaOutputs.txt
+            echo -e "$cmdoutput\n" >> $DEST_DIR/llvmtaOutputs.log
             if [[ $cmdoutput =~ Calculated[[:space:]]Timing[[:space:]]Bound:[[:space:]][0-9]* ]]; then
                 success=true
                 break
@@ -98,7 +99,9 @@ do
     if [[ "$success" = true ]]; then
         [[ $BASH_REMATCH =~ [0-9]+ ]]
         echo "$BASH_REMATCH"
+        echo "$BASH_REMATCH" >> $DEST_DIR/WCET.txt
     else
         echo "-"
+        echo "-" >> $DEST_DIR/WCET.txt
     fi
 done
