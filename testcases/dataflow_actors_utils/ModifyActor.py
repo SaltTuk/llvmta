@@ -48,6 +48,12 @@ for index, line in enumerate(lines):
         lines[index] = '\tint main(int argc, char* argv[]) {'
         break
 
+# change for(;;) to for(int varx_ = 0; varx_ < 1; varx_++)
+#for index, line in enumerate(lines):
+#    if line.lstrip().startswith('for(;;)'):
+#        lines[index] = '\t\tfor(int varx_ = 0; varx_ < 1; varx_++) {'
+#        break
+
 # remove    void init(void) {
 #               ...
 #           }

@@ -55,12 +55,12 @@ do
     mkdir $DEST_DIR/$actorname
     cp $SOURCE_DIR/Actor.hpp $DEST_DIR/$actorname/Actor.hpp
     cp $SOURCE_DIR/Channel.hpp $DEST_DIR/$actorname/Channel.hpp
-    cp $SCRIPT_DIR/dataflowActorsUtils/ClangSpecialOptions.txt $DEST_DIR/$actorname/ClangSpecialOptions.txt
+    cp $SCRIPT_DIR/dataflow_actors_utils/ClangSpecialOptions.txt $DEST_DIR/$actorname/ClangSpecialOptions.txt
     cp $actor $DEST_DIR/$actorname/$actorname.hpp
 
     # run the python script that modifies actor files for the main entry point
     touch $DEST_DIR/$actorname/$actorname.cpp
-    ./dataflowActorsUtils/ModifyActor.py "$DEST_DIR/$actorname/$actorname.hpp" "$DEST_DIR/$actorname/$actorname.cpp"
+    ./dataflow_actors_utils/ModifyActor.py "$DEST_DIR/$actorname/$actorname.hpp" "$DEST_DIR/$actorname/$actorname.cpp"
     rm $DEST_DIR/$actorname/$actorname.hpp 
 
     # do the first llvmta run to output unknown loops, try twice
