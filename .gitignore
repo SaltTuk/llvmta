@@ -91,7 +91,6 @@ doc/
 *.nav
 *.out
 *.snm
-*.pdf
 *.toc
 *.vrb
 *.swp
